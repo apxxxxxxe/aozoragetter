@@ -102,7 +102,10 @@ func getIndexFile(baseDir string) *Error {
 			return &Error{err, errorCode}
 		}
 
-		Unzip(indexZip, baseDir)
+		if err := Unzip(indexZip, baseDir); err != nil {
+			return &Error{err, errorCode}
+		}
+
 		if err := os.RemoveAll(indexZip); err != nil {
 			return &Error{err, errorCode}
 		}
