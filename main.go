@@ -138,15 +138,15 @@ func loadCSV(path string, delim rune) ([][]string, error) {
 	return result, nil
 }
 
-func curlBookFile(url, path string) (string, error) {
+func curlBookFile(url, path string) (string, string, error) {
 	tmpPath := filepath.Join(path, "tmp")
 	if err := downloadFile(tmpPath, url); err != nil {
-		return "", err
+		return "", tmpPath, err
 	}
 
 	fp, err := os.Open(tmpPath)
 	if err != nil {
-		return "", err
+		return "", tmpPath, err
 	}
 	defer fp.Close()
 
@@ -158,12 +158,12 @@ func curlBookFile(url, path string) (string, error) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return "", err
+			return "", tmpPath, err
 		}
 		result += string(line) + "\n"
 	}
 
-	return result, nil
+	return result, tmpPath, nil
 }
 
 func main() {
@@ -227,9 +227,14 @@ func main() {
 		return
 	}
 
-	book, err := curlBookFile(bookUrl, baseDir)
+	book, bookPath, err := curlBookFile(bookUrl, baseDir)
 	if err != nil {
 		fmt.Println(501)
+		return
+	}
+
+	if err := os.RemoveAll(bookPath); err != nil {
+		fmt.Println(101)
 		return
 	}
 
