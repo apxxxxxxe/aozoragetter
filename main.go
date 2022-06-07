@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,6 +24,10 @@ const name = "aozoraGetter"
 const indexFile = "list_person_all_extended_utf8.csv"
 
 const zenkakuByte = 3
+
+var (
+	errIsNotValidBook = errors.New("error: the book is not valid")
+)
 
 type Error struct {
 	Error     error
@@ -172,12 +177,15 @@ func curlBookFile(url, path string) (string, string, error) {
 	return result, tmpPath, nil
 }
 
-func getBookURL(data []string) string {
+func getBookURL(data []string) (string, error) {
 	rawURL := data[45]
 	preIndex := strings.Index(rawURL, "/card")
 	sufIndex := strings.LastIndex(rawURL, ".zip")
+	if preIndex == -1 || sufIndex == -1 {
+		return "", errIsNotValidBook
+	}
 	fileName := rawURL[strings.LastIndex(rawURL, "/")+1 : sufIndex]
-	return "https://aozorahack.org/aozorabunko_text" + rawURL[preIndex:sufIndex] + "/" + fileName + ".txt"
+	return "https://aozorahack.org/aozorabunko_text" + rawURL[preIndex:sufIndex] + "/" + fileName + ".txt", nil
 }
 
 func searchBook(query string, indexData [][]string) (string, [][]string) {
@@ -203,7 +211,11 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 
 			if len(candidates) == 1 {
 				// aozorahackにtxtファイルがあるので取ってくる
-				bookUrl = getBookURL(bookInfo)
+				var err error
+				bookUrl, err = getBookURL(bookInfo)
+				if err != nil {
+					candidates = [][]string{}
+				}
 			}
 		}
 	}
