@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -171,6 +172,45 @@ func curlBookFile(url, path string) (string, string, error) {
 	return result, tmpPath, nil
 }
 
+func getBookURL(data []string) string {
+	rawURL := data[45]
+	preIndex := strings.Index(rawURL, "/card")
+	sufIndex := strings.LastIndex(rawURL, ".zip")
+	fileName := rawURL[strings.LastIndex(rawURL, "/")+1 : sufIndex]
+	return "https://aozorahack.org/aozorabunko_text" + rawURL[preIndex:sufIndex] + "/" + fileName + ".txt"
+}
+
+func searchBook(query string, indexData [][]string) (string, [][]string) {
+	bookUrl := ""
+	candidates := [][]string{}
+
+	for _, bookInfo := range indexData {
+		title := bookInfo[1]
+		author := bookInfo[15] + " " + bookInfo[16]
+		if strings.Contains(title, query) || strings.Contains(author, query) {
+
+			infoSummury := []string{title, author}
+			isUniqueBook := true
+			for _, c := range candidates {
+				if reflect.DeepEqual(c, infoSummury) {
+					isUniqueBook = false
+				}
+			}
+
+			if isUniqueBook {
+				candidates = append(candidates, bookInfo)
+			}
+
+			if len(candidates) == 1 {
+				// aozorahackにtxtファイルがあるので取ってくる
+				bookUrl = getBookURL(bookInfo)
+			}
+		}
+	}
+
+	return bookUrl, candidates
+}
+
 func main() {
 	/*
 		終了コード一覧
@@ -178,8 +218,11 @@ func main() {
 		200: インデックスダウンロード成功
 		201: インデックスダウンロード失敗
 		301: インデックス読み込み失敗
+		400: 部分一致する作品群が見つかった
 		401: 入力に部分一致する作品が見つからなかった
+		500: 一つの部分一致する作品群を返す(２行目から作品の本文が返る)
 		501: 作品ファイルの取得に失敗
+		0: 完全一致する作品が見つかった(２行目から作品の本文が返る)
 	*/
 
 	execFile, err := os.Executable()
@@ -204,7 +247,7 @@ func main() {
 		return
 	}
 
-	titleQuery := os.Args[1]
+	queryWords := os.Args[1:]
 
 	indexData, err := loadCSV(filepath.Join(baseDir, indexFile), ',')
 	if err != nil {
@@ -212,22 +255,22 @@ func main() {
 		return
 	}
 
+	candidates := indexData
 	bookUrl := ""
-
-	for _, bookInfo := range indexData {
-		title := bookInfo[1]
-		if strings.Contains(title, titleQuery) {
-			// aozorahackにtxtファイルがあるので取ってくる
-			rawURL := bookInfo[45]
-			preIndex := strings.Index(rawURL, "/card")
-			sufIndex := strings.LastIndex(rawURL, ".zip")
-			fileName := rawURL[strings.LastIndex(rawURL, "/")+1 : sufIndex]
-			bookUrl = "https://aozorahack.org/aozorabunko_text" + rawURL[preIndex:sufIndex] + "/" + fileName + ".txt"
-			break
-		}
+	for _, query := range queryWords {
+		// クエリの数だけ繰り返し作品の絞り込み
+		bookUrl, candidates = searchBook(query, candidates)
 	}
 
-	if bookUrl == "" {
+	if len(candidates) > 1 {
+		fmt.Println(400)
+		for _, c := range candidates {
+			title := c[1]
+			author := c[15] + " " + c[16]
+			fmt.Println(title + "," + author)
+		}
+		return
+	} else if bookUrl == "" {
 		fmt.Println(401)
 		return
 	}
@@ -325,6 +368,7 @@ func main() {
 
 	}
 
+	fmt.Println(0)
 	fmt.Println(processedBook)
 
 }
