@@ -10,13 +10,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/unicode/norm"
 )
 
 const name = "aozoraGetter"
 const indexFile = "list_person_all_extended_utf8.csv"
+
+const zenkakuByte = 3
 
 type Error struct {
 	Error     error
@@ -238,6 +243,88 @@ func main() {
 		return
 	}
 
-	fmt.Println(book)
+	processedBook := ""
+	lines := strings.Split(book, "\n")
+	jisage := ""
+	singleJisage := ""
+	jiageCount := 0
+	i := 0
+	for i < len(lines) {
+
+		if strings.HasPrefix(lines[i], "----------") {
+			i++
+			for !strings.HasPrefix(lines[i], "----------") {
+				i++
+			}
+			i++
+		}
+
+		if strings.Contains(lines[i], "改ページ］") {
+			lines[i] = "■□" + lines[i]
+		}
+
+		if strings.HasPrefix(lines[i], "［＃ここから") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			jisage = strings.Repeat("　", jisageCount)
+			i++
+		}
+
+		if strings.HasPrefix(lines[i], "［＃ここで字下げ終わり］") {
+			jisage = ""
+			i++
+		}
+
+		if strings.Contains(lines[i], "字下げ］") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			singleJisage = strings.Repeat("　", jisageCount)
+		}
+
+		if strings.Contains(lines[i], "［＃地から") && strings.Contains(lines[i], "字上げ］") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			var err error
+			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			jiageCount *= zenkakuByte
+		}
+
+		if strings.HasPrefix(lines[i], "底本：") {
+			break
+		}
+
+		if strings.Contains(lines[i], "は中見出し］") {
+			lines[i] = "◆◇" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "※［") {
+			rep := regexp.MustCompile(`※［[^］]*］`)
+			lines[i] = rep.ReplaceAllString(lines[i], `★`)
+		}
+
+		/*
+			if strings.Contains(lines[i], "［") {
+				rep := regexp.MustCompile(`［[^］]*］`)
+				lines[i] = rep.ReplaceAllString(lines[i], "")
+			}
+		*/
+
+		line := singleJisage + jisage + lines[i] + "\n"
+		processedBook += line[jiageCount:]
+		singleJisage = ""
+		jiageCount = 0
+		i++
+
+	}
+
+	fmt.Println(processedBook)
 
 }
