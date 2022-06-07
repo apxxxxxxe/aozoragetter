@@ -1,2 +1,2 @@
 # aozoragetter
-- 青空文庫から作品をダウンロードし、伺かで表示するためのSAORI-basic
+- 青空文庫から作品をダウンロードして伺かで表示するためのSAORI-basic
