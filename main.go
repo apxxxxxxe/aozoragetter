@@ -217,6 +217,147 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 	return bookUrl, candidates
 }
 
+// http://kumihan.aozora.gr.jp/slabid-19.htmに記載されている注記を処理する
+func formatText(book string) string {
+	result := ""
+	lines := strings.Split(book, "\n")
+	jisage := ""
+	jiage := ""
+	align := ""
+	singleJiage := ""
+	singleJisage := ""
+	singleAlign := ""
+	jiageCount := 0
+	i := 0
+	for i < len(lines) {
+
+		if strings.HasPrefix(lines[i], "----------") {
+			i++
+			for !strings.HasPrefix(lines[i], "----------") {
+				i++
+			}
+			i++
+		}
+
+		if strings.Contains(lines[i], "［＃改丁］") {
+			lines[i] = "■□" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "［＃改ページ］") || strings.Contains(lines[i], "［＃改段］") {
+			lines[i] = "□■" + lines[i]
+		}
+
+		// 「折り返して字下げ」と「改行天付き」はここで「ここから○字下げ」として扱う
+		if strings.HasPrefix(lines[i], "［＃ここから") && strings.Contains(lines[i], "字下げ") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			jisage = strings.Repeat("　", jisageCount)
+			i++
+		}
+
+		if strings.HasPrefix(lines[i], "［＃ここで字下げ終わり］") {
+			jisage = ""
+			i++
+		}
+
+		if strings.Contains(lines[i], "字下げ］") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			singleJisage = strings.Repeat("　", jisageCount)
+		}
+
+		if strings.Contains(lines[i], "［＃ここから地付き］") {
+			align = "\\f[align,right]"
+		}
+
+		if strings.Contains(lines[i], "［＃ここで地付き終わり］") {
+			align = "\\f[align,left]"
+		}
+
+		if strings.HasPrefix(lines[i], "［＃ここから") && strings.Contains(lines[i], "字上げ") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jiageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			jiage = strings.Repeat("　", jiageCount)
+			i++
+		}
+
+		if strings.HasPrefix(lines[i], "［＃ここで字上げ終わり］") {
+			jiage = ""
+			i++
+		}
+
+		if strings.Contains(lines[i], "字上げ］") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			jiageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			singleJiage = strings.Repeat("　", jiageCount)
+		}
+
+		if strings.Contains(lines[i], "［＃地付き］") {
+			singleAlign = "\\f[align,right]"
+		}
+
+		if strings.Contains(lines[i], "［＃地から") && strings.Contains(lines[i], "字上げ］") {
+			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
+			var err error
+			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			if err != nil {
+				panic(err)
+			}
+			jiageCount *= zenkakuByte
+		}
+
+		if strings.HasPrefix(lines[i], "底本：") {
+			break
+		}
+
+		if strings.Contains(lines[i], "［＃ページの左右中央］") {
+			lines[i] = "◆◇" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "は大見出し］") {
+			lines[i] = "◆◇" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "は中見出し］") {
+			lines[i] = "◇◆" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "※［") {
+			rep := regexp.MustCompile(`※［[^］]*］`)
+			lines[i] = rep.ReplaceAllString(lines[i], `□`)
+		}
+
+		/*
+			if strings.Contains(lines[i], "［") {
+				rep := regexp.MustCompile(`［[^］]*］`)
+				lines[i] = rep.ReplaceAllString(lines[i], "")
+			}
+		*/
+
+		line := singleAlign + align + singleJisage + jisage + lines[i] + singleJiage + jiage + "\n"
+		result += line[jiageCount:]
+		singleJisage = ""
+		singleJiage = ""
+		singleAlign = ""
+		jiageCount = 0
+		i++
+	}
+
+	return result
+}
+
 func main() {
 	/*
 		終了コード一覧
@@ -291,91 +432,7 @@ func main() {
 		return
 	}
 
-	processedBook := ""
-	lines := strings.Split(book, "\n")
-	jisage := ""
-	singleJisage := ""
-	jiageCount := 0
-	i := 0
-	for i < len(lines) {
-
-		if strings.HasPrefix(lines[i], "----------") {
-			i++
-			for !strings.HasPrefix(lines[i], "----------") {
-				i++
-			}
-			i++
-		}
-
-		if strings.Contains(lines[i], "改ページ］") {
-			lines[i] = "■□" + lines[i]
-		}
-
-		if strings.HasPrefix(lines[i], "［＃ここから") {
-			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
-			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
-			if err != nil {
-				panic(err)
-			}
-			jisage = strings.Repeat("　", jisageCount)
-			i++
-		}
-
-		if strings.HasPrefix(lines[i], "［＃ここで字下げ終わり］") {
-			jisage = ""
-			i++
-		}
-
-		if strings.Contains(lines[i], "字下げ］") {
-			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
-			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
-			if err != nil {
-				panic(err)
-			}
-			singleJisage = strings.Repeat("　", jisageCount)
-		}
-
-		if strings.Contains(lines[i], "［＃地から") && strings.Contains(lines[i], "字上げ］") {
-			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
-			var err error
-			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
-			if err != nil {
-				panic(err)
-			}
-			jiageCount *= zenkakuByte
-		}
-
-		if strings.HasPrefix(lines[i], "底本：") {
-			break
-		}
-
-		if strings.Contains(lines[i], "は大見出し］") {
-			lines[i] = "◆◇" + lines[i]
-		}
-
-		if strings.Contains(lines[i], "は中見出し］") {
-			lines[i] = "◇◆" + lines[i]
-		}
-
-		if strings.Contains(lines[i], "※［") {
-			rep := regexp.MustCompile(`※［[^］]*］`)
-			lines[i] = rep.ReplaceAllString(lines[i], `★`)
-		}
-
-		/*
-			if strings.Contains(lines[i], "［") {
-				rep := regexp.MustCompile(`［[^］]*］`)
-				lines[i] = rep.ReplaceAllString(lines[i], "")
-			}
-		*/
-
-		line := singleJisage + jisage + lines[i] + "\n"
-		processedBook += line[jiageCount:]
-		singleJisage = ""
-		jiageCount = 0
-		i++
-
-	}
+	processedBook := formatText(book)
 
 	fmt.Println(0)
 	fmt.Println(processedBook)
