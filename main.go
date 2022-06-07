@@ -14,9 +14,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/unicode/norm"
+
+	"github.com/ikawaha/kagome-dict/ipa"
+	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
 const name = "aozoraGetter"
@@ -219,6 +223,74 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 
 // http://kumihan.aozora.gr.jp/slabid-19.htmに記載されている注記を処理する
 func formatText(book string) string {
+
+	processRuby := func(book string) string {
+
+		isKanji := func(src string) bool {
+			result := true
+			for _, r := range src {
+				if !unicode.In(rune(r), unicode.Han) {
+					result = false
+				}
+			}
+			return result
+		}
+
+		t, err := tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
+		if err != nil {
+			panic(err)
+		}
+		seg := t.Wakati(book)
+
+		// | 1 2 3 < a o g >
+		// < 1 2 3 , a o g >
+		j := 0
+		for j < len(seg) {
+
+			if seg[j] == "｜" {
+				seg[j] = "《"
+				j++
+				for seg[j] != "《" {
+					j++
+				}
+				seg[j] = ","
+			}
+
+			if seg[j] == "《" {
+				tango := []string{}
+				j--
+				for isKanji(seg[j]) {
+					tango = append([]string{seg[j]}, tango...)
+					j--
+				}
+				j++
+				seg[j] = "《"
+				for _, t := range tango {
+					j++
+					seg[j] = t
+				}
+
+				pre := make([]string, len(seg[:j+1]))
+				_ = copy(pre, seg[:j+1])
+				pre = append(pre, ",")
+				post := seg[j+1:]
+				seg = append(pre, post...)
+				for seg[j] != "》" {
+					j++
+				}
+			}
+
+			j++
+		}
+
+		book = ""
+		for _, s := range seg {
+			book += s
+		}
+
+		return book
+	}
+
 	result := ""
 	lines := strings.Split(book, "\n")
 	jisage := ""
@@ -355,7 +427,7 @@ func formatText(book string) string {
 		i++
 	}
 
-	return result
+	return processRuby(result)
 }
 
 func main() {
