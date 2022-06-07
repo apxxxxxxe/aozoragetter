@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -188,27 +187,22 @@ func getBookURL(data []string) (string, error) {
 	return "https://aozorahack.org/aozorabunko_text" + rawURL[preIndex:sufIndex] + "/" + fileName + ".txt", nil
 }
 
+func getInfoSummury(bookInfo []string) map[string]string {
+	result := map[string]string{}
+	result["title"] = bookInfo[1]
+	result["author"] = bookInfo[15] + bookInfo[16]
+	result["teihon"] = bookInfo[27]
+	return result
+}
+
 func searchBook(query string, indexData [][]string) (string, [][]string) {
 	bookUrl := ""
 	candidates := [][]string{}
 
 	for _, bookInfo := range indexData {
-		title := bookInfo[1]
-		author := bookInfo[15] + " " + bookInfo[16]
-		if strings.Contains(title, query) || strings.Contains(author, query) {
-
-			infoSummury := []string{title, author}
-			isUniqueBook := true
-			for _, c := range candidates {
-				if reflect.DeepEqual(c, infoSummury) {
-					isUniqueBook = false
-				}
-			}
-
-			if isUniqueBook {
-				candidates = append(candidates, bookInfo)
-			}
-
+		infoSummury := getInfoSummury(bookInfo)
+		if strings.Contains(infoSummury["title"], query) || strings.Contains(infoSummury["author"], query) {
+			candidates = append(candidates, bookInfo)
 			if len(candidates) == 1 {
 				// aozorahackにtxtファイルがあるので取ってくる
 				var err error
@@ -277,9 +271,8 @@ func main() {
 	if len(candidates) > 1 {
 		fmt.Println(400)
 		for _, c := range candidates {
-			title := c[1]
-			author := c[15] + " " + c[16]
-			fmt.Println(title + "," + author)
+			s := getInfoSummury(c)
+			fmt.Println("「" + s["title"] + "」" + s["author"] + "(" + s["teihon"] + ")")
 		}
 		return
 	} else if bookUrl == "" {
