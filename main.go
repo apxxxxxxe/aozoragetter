@@ -349,8 +349,12 @@ func main() {
 			break
 		}
 
-		if strings.Contains(lines[i], "は中見出し］") {
+		if strings.Contains(lines[i], "は大見出し］") {
 			lines[i] = "◆◇" + lines[i]
+		}
+
+		if strings.Contains(lines[i], "は中見出し］") {
+			lines[i] = "◇◆" + lines[i]
 		}
 
 		if strings.Contains(lines[i], "※［") {
