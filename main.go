@@ -30,6 +30,18 @@ const zenkakuByte = 3
 
 var (
 	errIsNotValidBook = errors.New("error: the book is not valid")
+	rep               = map[string]*regexp.Regexp{
+		"bousen":      regexp.MustCompile(`［＃「(.*?)」(の左)?に((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
+		"bousenStart": regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
+		"bousenEnd":   regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)終わり］`),
+		"futoji":      regexp.MustCompile(`［＃「(.*?)」は太字］`),
+		"futojiStart": regexp.MustCompile(`［＃(ここから)?太字］`),
+		"futojiEnd":   regexp.MustCompile(`［＃(ここで)?太字終わり］`),
+		"shatai":      regexp.MustCompile(`［＃「(.*?)」は斜体］`),
+		"shataiStart": regexp.MustCompile(`［＃(ここから)?斜体］`),
+		"shataiEnd":   regexp.MustCompile(`［＃(ここで)?斜体終わり］`),
+		"jisageStart": regexp.MustCompile(`［＃(ここから)?([０１２３４５６７８９]+)字下げ］`),
+	}
 )
 
 type Error struct {
@@ -223,19 +235,6 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 
 // http://kumihan.aozora.gr.jp/slabid-19.htmに記載されている注記を処理する
 func formatText(book string) string {
-
-	rep := map[string]*regexp.Regexp{
-		"bousen":      regexp.MustCompile(`［＃「(.*?)」(の左)?に((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
-		"bousenStart": regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
-		"bousenEnd":   regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)終わり］`),
-		"futoji":      regexp.MustCompile(`［＃「(.*?)」は太字］`),
-		"futojiStart": regexp.MustCompile(`［＃(ここから)?太字］`),
-		"futojiEnd":   regexp.MustCompile(`［＃(ここで)?太字終わり］`),
-		"shatai":      regexp.MustCompile(`［＃「(.*?)」は斜体］`),
-		"shataiStart": regexp.MustCompile(`［＃(ここから)?斜体］`),
-		"shataiEnd":   regexp.MustCompile(`［＃(ここで)?斜体終わり］`),
-		"jisageStart": regexp.MustCompile(`［＃(ここから)?([０１２３４５６７８９]+)字下げ］`),
-	}
 
 	processRuby := func(book string) string {
 
