@@ -242,8 +242,6 @@ func formatText(book string) string {
 		}
 		seg := t.Wakati(book)
 
-		// | 1 2 3 < a o g >
-		// < 1 2 3 , a o g >
 		j := 0
 		for j < len(seg) {
 
@@ -270,11 +268,10 @@ func formatText(book string) string {
 					seg[j] = t
 				}
 
-				pre := make([]string, len(seg[:j+1]))
-				_ = copy(pre, seg[:j+1])
-				pre = append(pre, ",")
-				post := seg[j+1:]
-				seg = append(pre, post...)
+				seg = append(seg, "")
+				copy(seg[j+2:], seg[j+1:])
+				seg[j+1] = ","
+
 				for seg[j] != "》" {
 					j++
 				}
