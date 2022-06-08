@@ -234,6 +234,7 @@ func formatText(book string) string {
 		"shatai":      regexp.MustCompile(`［＃「(.*?)」は斜体］`),
 		"shataiStart": regexp.MustCompile(`［＃(ここから)?斜体］`),
 		"shataiEnd":   regexp.MustCompile(`［＃(ここで)?斜体終わり］`),
+		"jisageStart": regexp.MustCompile(`［＃(ここから)?([０１２３４５６７８９]+)字下げ］`),
 	}
 
 	processRuby := func(book string) string {
@@ -329,28 +330,26 @@ func formatText(book string) string {
 		}
 
 		// 「折り返して字下げ」と「改行天付き」はここで「ここから○字下げ」として扱う
-		if strings.HasPrefix(lines[i], "［＃ここから") && strings.Contains(lines[i], "字下げ") {
-			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
-			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+		if strings.Contains(lines[i], "字下げ］") {
+			subMatch := rep["jisageStart"].FindStringSubmatch(lines[i])
+
+			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(subMatch[2]))))
 			if err != nil {
 				panic(err)
 			}
-			jisage = strings.Repeat("　", jisageCount)
-			i++
+
+			if subMatch[1] == "ここから" {
+				// ［＃ここからn字下げ］の場合
+				jisage += strings.Repeat("　", jisageCount)
+			} else {
+				// ［＃n字下げ］の場合
+				singleJisage = strings.Repeat("　", jisageCount)
+			}
 		}
 
-		if strings.HasPrefix(lines[i], "［＃ここで字下げ終わり］") {
+		if strings.Contains(lines[i], "［＃ここで字下げ終わり］") {
 			jisage = ""
 			i++
-		}
-
-		if strings.Contains(lines[i], "字下げ］") {
-			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
-			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
-			if err != nil {
-				panic(err)
-			}
-			singleJisage = strings.Repeat("　", jisageCount)
 		}
 
 		if strings.Contains(lines[i], "［＃ここから地付き］") {
