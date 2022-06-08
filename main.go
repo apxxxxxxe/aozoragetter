@@ -164,17 +164,20 @@ func loadCSV(path string, delim rune) ([][]string, error) {
 	return result, nil
 }
 
-func curlBookFile(url, path string) (string, string, error) {
+func curlBookFile(url, path string) (string, error) {
 	tmpPath := filepath.Join(path, "tmp")
 	if err := downloadFile(tmpPath, url); err != nil {
-		return "", tmpPath, err
+		return "", err
 	}
 
 	fp, err := os.Open(tmpPath)
 	if err != nil {
-		return "", tmpPath, err
+		return "", err
 	}
-	defer fp.Close()
+	defer func() {
+		fp.Close()
+		os.RemoveAll(tmpPath)
+	}()
 
 	decoder := japanese.ShiftJIS.NewDecoder()
 	reader := bufio.NewReader(decoder.Reader(fp))
@@ -184,12 +187,12 @@ func curlBookFile(url, path string) (string, string, error) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return "", tmpPath, err
+			return "", err
 		}
 		result += string(line) + "\n"
 	}
 
-	return result, tmpPath, nil
+	return result, nil
 }
 
 func getBookURL(data []string) (string, error) {
@@ -518,14 +521,9 @@ func main() {
 		return
 	}
 
-	book, bookPath, err := curlBookFile(bookUrl, baseDir)
+	book, err := curlBookFile(bookUrl, baseDir)
 	if err != nil {
 		fmt.Println(501)
-		return
-	}
-
-	if err := os.RemoveAll(bookPath); err != nil {
-		fmt.Println(101)
 		return
 	}
 
