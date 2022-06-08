@@ -224,6 +224,18 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 // http://kumihan.aozora.gr.jp/slabid-19.htmに記載されている注記を処理する
 func formatText(book string) string {
 
+	rep := map[string]*regexp.Regexp{
+		"bousen":      regexp.MustCompile(`［＃「(.*?)」(の左)?に((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
+		"bousenStart": regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)］`),
+		"bousenEnd":   regexp.MustCompile(`［＃(左に)?((白ゴマ|丸|白丸|黒三角|白三角|二重丸|蛇の目)?傍点|((二重)?傍|鎖|破|波)線)終わり］`),
+		"futoji":      regexp.MustCompile(`［＃「(.*?)」は太字］`),
+		"futojiStart": regexp.MustCompile(`［＃(ここから)?太字］`),
+		"futojiEnd":   regexp.MustCompile(`［＃(ここで)?太字終わり］`),
+		"shatai":      regexp.MustCompile(`［＃「(.*?)」は斜体］`),
+		"shataiStart": regexp.MustCompile(`［＃(ここから)?斜体］`),
+		"shataiEnd":   regexp.MustCompile(`［＃(ここで)?斜体終わり］`),
+	}
+
 	processRuby := func(book string) string {
 
 		isKanji := func(src string) bool {
@@ -309,11 +321,11 @@ func formatText(book string) string {
 		}
 
 		if strings.Contains(lines[i], "［＃改丁］") {
-			lines[i] = "■□" + lines[i]
+			lines[i] = "\\x[noclear]\\c" + lines[i]
 		}
 
 		if strings.Contains(lines[i], "［＃改ページ］") || strings.Contains(lines[i], "［＃改段］") {
-			lines[i] = "□■" + lines[i]
+			lines[i] = "\\x[noclear]\\c" + lines[i]
 		}
 
 		// 「折り返して字下げ」と「改行天付き」はここで「ここから○字下げ」として扱う
@@ -415,6 +427,30 @@ func formatText(book string) string {
 			}
 		*/
 
+		for _, s := range rep["bousen"].FindAllStringSubmatch(lines[i], -1) {
+			lines[i] = strings.Replace(lines[i], s[1], "\\![underline,1]"+s[1]+"\\![underline,0]", 1)
+		}
+
+		lines[i] = rep["bousenStart"].ReplaceAllString(lines[i], "\\![underline,1]")
+
+		lines[i] = rep["bousenEnd"].ReplaceAllString(lines[i], "\\![underline,0]")
+
+		for _, s := range rep["futoji"].FindAllStringSubmatch(lines[i], -1) {
+			lines[i] = strings.Replace(lines[i], s[1], "\\![bold,1]"+s[1]+"\\![bold,0]", 1)
+		}
+
+		lines[i] = rep["futojiStart"].ReplaceAllString(lines[i], "\\![bold,1]")
+
+		lines[i] = rep["futojiEnd"].ReplaceAllString(lines[i], "\\![bold,0]")
+
+		for _, s := range rep["shatai"].FindAllStringSubmatch(lines[i], -1) {
+			lines[i] = strings.Replace(lines[i], s[1], "\\![italic,1]"+s[1]+"\\![italic,0]", 1)
+		}
+
+		lines[i] = rep["shataiStart"].ReplaceAllString(lines[i], "\\![italic,1]")
+
+		lines[i] = rep["shataiEnd"].ReplaceAllString(lines[i], "\\![italic,0]")
+
 		line := singleAlign + align + singleJisage + jisage + lines[i] + singleJiage + jiage + "\n"
 		result += line[jiageCount:]
 		singleJisage = ""
@@ -429,16 +465,16 @@ func formatText(book string) string {
 
 func main() {
 	/*
-		終了コード一覧
-		101: その他事前処理中のエラー
-		200: インデックスダウンロード成功
-		201: インデックスダウンロード失敗
-		301: インデックス読み込み失敗
-		400: 部分一致する作品群が見つかった
-		401: 入力に部分一致する作品が見つからなかった
-		500: 一つの部分一致する作品群を返す(２行目から作品の本文が返る)
-		501: 作品ファイルの取得に失敗
-		0: 完全一致する作品が見つかった(２行目から作品の本文が返る)
+	   終了コード一覧
+	   101: その他事前処理中のエラー
+	   200: インデックスダウンロード成功
+	   201: インデックスダウンロード失敗
+	   301: インデックス読み込み失敗
+	   400: 部分一致する作品群が見つかった
+	   401: 入力に部分一致する作品が見つからなかった
+	   500: 一つの部分一致する作品群を返す(２行目から作品の本文が返る)
+	   501: 作品ファイルの取得に失敗
+	   0: 完全一致する作品が見つかった(２行目から作品の本文が返る)
 	*/
 
 	execFile, err := os.Executable()
