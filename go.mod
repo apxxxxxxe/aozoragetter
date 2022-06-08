@@ -1,4 +1,4 @@
-module github.com/apxxxxxxe/aozoraGetter
+module github.com/apxxxxxxe/aozoragetter
 
 go 1.18
 

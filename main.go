@@ -23,7 +23,7 @@ import (
 	"github.com/ikawaha/kagome/v2/tokenizer"
 )
 
-const name = "aozoraGetter"
+const name = "aozoragetter"
 const indexFile = "list_person_all_extended_utf8.csv"
 
 const zenkakuByte = 3
