@@ -351,7 +351,6 @@ func formatText(book string) string {
 
 		if strings.Contains(lines[i], "［＃ここで字下げ終わり］") {
 			jisage = ""
-			i++
 		}
 
 		if strings.Contains(lines[i], "［＃ここから地付き］") {
@@ -447,7 +446,11 @@ func formatText(book string) string {
 		lines[i] = rep["shataiEnd"].ReplaceAllString(lines[i], "\\![italic,0]")
 
 		line := singleAlign + align + singleJisage + jisage + lines[i] + singleJiage + jiage + "\n"
-		result += line[jiageCount:]
+		if len(singleJisage)+len(jisage) > jiageCount {
+			result += line[jiageCount:]
+		} else {
+			result += line
+		}
 		singleJisage = ""
 		singleJiage = ""
 		singleAlign = ""
