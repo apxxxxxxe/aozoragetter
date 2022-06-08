@@ -416,7 +416,7 @@ func formatText(book string) string {
 
 		if strings.Contains(lines[i], "※［") {
 			rep := regexp.MustCompile(`※［[^］]*］`)
-			lines[i] = rep.ReplaceAllString(lines[i], `□`)
+			lines[i] = rep.ReplaceAllString(lines[i], `⺀`)
 		}
 
 		/*
