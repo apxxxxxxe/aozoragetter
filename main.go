@@ -402,16 +402,10 @@ func formatText(book string) string {
 			break
 		}
 
-		if strings.Contains(lines[i], "［＃ページの左右中央］") {
-			lines[i] = "◆◇" + lines[i]
-		}
+		//"［＃ページの左右中央］"
 
-		if strings.Contains(lines[i], "は大見出し］") {
-			lines[i] = "◆◇" + lines[i]
-		}
-
-		if strings.Contains(lines[i], "は中見出し］") {
-			lines[i] = "◇◆" + lines[i]
+		if strings.Contains(lines[i], "見出し］") {
+			lines[i] = "\\![bold,1]" + lines[i] + "\\![bold,0]"
 		}
 
 		if strings.Contains(lines[i], "※［") {
