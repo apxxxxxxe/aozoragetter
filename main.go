@@ -209,7 +209,11 @@ func getBookURL(data []string) (string, error) {
 func getInfoSummury(bookInfo []string) map[string]string {
 	result := map[string]string{}
 	result["title"] = bookInfo[1]
-	result["author"] = bookInfo[15] + bookInfo[16]
+	if (isKatakana(bookInfo[15]) && isKatakana(bookInfo[16])) || strings.Contains(bookInfo[16], "・") {
+		result["author"] = bookInfo[16] + "・" + bookInfo[15]
+	} else {
+		result["author"] = bookInfo[15] + bookInfo[16]
+	}
 	return result
 }
 
@@ -245,72 +249,82 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 	return bookUrl, candidates
 }
 
+func isKanji(src string) bool {
+	result := true
+	for _, r := range src {
+		if !unicode.In(rune(r), unicode.Han) {
+			result = false
+		}
+	}
+	return result
+}
+
+func isKatakana(src string) bool {
+	result := true
+	for _, r := range src {
+		if !unicode.In(rune(r), unicode.Katakana) {
+			result = false
+		}
+	}
+	return result
+}
+
+func processRuby(book string) string {
+
+	t, err := tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
+	if err != nil {
+		panic(err)
+	}
+	seg := t.Wakati(book)
+
+	j := 0
+	for j < len(seg) {
+
+		if seg[j] == "｜" {
+			seg[j] = "《"
+			j++
+			for seg[j] != "《" {
+				j++
+			}
+			seg[j] = ","
+		}
+
+		if seg[j] == "《" {
+			tango := []string{}
+			j--
+			for isKanji(seg[j]) {
+				tango = append([]string{seg[j]}, tango...)
+				j--
+			}
+			j++
+			seg[j] = "《"
+			for _, t := range tango {
+				j++
+				seg[j] = t
+			}
+
+			seg = append(seg, "")
+			copy(seg[j+2:], seg[j+1:])
+			seg[j+1] = ","
+
+			for seg[j] != "》" {
+				j++
+			}
+		}
+
+		j++
+	}
+
+	book = ""
+	for _, s := range seg {
+		book += s
+	}
+
+	return book
+}
+
 // http://kumihan.aozora.gr.jp/slabid-19.htmに記載されている注記を処理する
 func formatText(book string) string {
-
-	processRuby := func(book string) string {
-
-		isKanji := func(src string) bool {
-			result := true
-			for _, r := range src {
-				if !unicode.In(rune(r), unicode.Han) {
-					result = false
-				}
-			}
-			return result
-		}
-
-		t, err := tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
-		if err != nil {
-			panic(err)
-		}
-		seg := t.Wakati(book)
-
-		j := 0
-		for j < len(seg) {
-
-			if seg[j] == "｜" {
-				seg[j] = "《"
-				j++
-				for seg[j] != "《" {
-					j++
-				}
-				seg[j] = ","
-			}
-
-			if seg[j] == "《" {
-				tango := []string{}
-				j--
-				for isKanji(seg[j]) {
-					tango = append([]string{seg[j]}, tango...)
-					j--
-				}
-				j++
-				seg[j] = "《"
-				for _, t := range tango {
-					j++
-					seg[j] = t
-				}
-
-				seg = append(seg, "")
-				copy(seg[j+2:], seg[j+1:])
-				seg[j+1] = ","
-
-				for seg[j] != "》" {
-					j++
-				}
-			}
-
-			j++
-		}
-
-		book = ""
-		for _, s := range seg {
-			book += s
-		}
-
-		return book
-	}
 
 	result := ""
 	lines := strings.Split(book, "\n")
