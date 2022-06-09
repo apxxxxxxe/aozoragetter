@@ -210,7 +210,6 @@ func getInfoSummury(bookInfo []string) map[string]string {
 	result := map[string]string{}
 	result["title"] = bookInfo[1]
 	result["author"] = bookInfo[15] + bookInfo[16]
-	result["teihon"] = bookInfo[27]
 	return result
 }
 
@@ -221,13 +220,23 @@ func searchBook(query string, indexData [][]string) (string, [][]string) {
 	for _, bookInfo := range indexData {
 		infoSummury := getInfoSummury(bookInfo)
 		if strings.Contains(infoSummury["title"], query) || strings.Contains(infoSummury["author"], query) {
-			candidates = append(candidates, bookInfo)
-			if len(candidates) == 1 {
-				// aozorahackにtxtファイルがあるので取ってくる
-				var err error
-				bookUrl, err = getBookURL(bookInfo)
-				if err != nil {
-					candidates = [][]string{}
+			isUniqueBook := true
+			for _, c := range candidates {
+				s := getInfoSummury(c)
+				if infoSummury["title"] == s["title"] && infoSummury["author"] == s["author"] {
+					// 同作品名、同作者名は同一作品とみなす
+					isUniqueBook = false
+				}
+			}
+			if isUniqueBook {
+				candidates = append(candidates, bookInfo)
+				if len(candidates) == 1 {
+					// aozorahackにtxtファイルがあるので取ってくる
+					var err error
+					bookUrl, err = getBookURL(bookInfo)
+					if err != nil {
+						candidates = [][]string{}
+					}
 				}
 			}
 		}
@@ -516,7 +525,7 @@ func main() {
 		fmt.Println(400)
 		for _, c := range candidates {
 			s := getInfoSummury(c)
-			fmt.Println("「" + s["title"] + "」" + s["author"] + "(" + s["teihon"] + ")")
+			fmt.Println("「" + s["title"] + "」" + s["author"])
 		}
 		return
 	} else if bookUrl == "" {
