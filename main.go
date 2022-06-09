@@ -471,6 +471,10 @@ func formatText(book string) string {
 }
 
 func main() {
+	sub(os.Args)
+}
+
+func sub(args []string) {
 	/*
 	   終了コード一覧
 	   101: その他事前処理中のエラー
@@ -484,10 +488,21 @@ func main() {
 	   0: 完全一致する作品が見つかった(２行目から作品の本文が返る)
 	*/
 
-	execFile, err := os.Executable()
-	if err != nil {
-		fmt.Println(101)
-		return
+	var execFile string
+	if args[0] == "test" {
+		var err error
+		execFile, err = os.Getwd()
+		if err != nil {
+			fmt.Println(101)
+			return
+		}
+	} else {
+		var err error
+		execFile, err = os.Executable()
+		if err != nil {
+			fmt.Println(101)
+			return
+		}
 	}
 
 	baseDir := filepath.Dir(execFile)
@@ -501,12 +516,12 @@ func main() {
 		return
 	}
 
-	if len(os.Args) < 2 {
+	if len(args) < 2 {
 		fmt.Println(101)
 		return
 	}
 
-	queryWords := os.Args[1:]
+	queryWords := args[1:]
 
 	indexData, err := loadCSV(filepath.Join(baseDir, indexFile), ',')
 	if err != nil {
