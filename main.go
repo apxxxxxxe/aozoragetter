@@ -49,6 +49,11 @@ type Error struct {
 	ErrorCode int
 }
 
+func runtimeError() {
+	fmt.Println(1)
+	os.Exit(0)
+}
+
 func isFile(filename string) bool {
 	_, err := os.OpenFile(filename, os.O_RDONLY, 0)
 	return !os.IsNotExist(err)
@@ -273,7 +278,7 @@ func processRuby(book string) string {
 
 	t, err := tokenizer.New(ipa.Dict(), tokenizer.OmitBosEos())
 	if err != nil {
-		panic(err)
+		runtimeError()
 	}
 	seg := t.Wakati(book)
 
@@ -366,8 +371,9 @@ func formatText(book string) string {
 
 			jisageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(subMatch[2]))))
 			if err != nil {
-				panic(err)
+				runtimeError()
 			}
+
 			if subMatch[4] != "" {
 				orikaeshiCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(subMatch[4]))))
 				if err != nil {
@@ -402,7 +408,7 @@ func formatText(book string) string {
 			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
 			jiageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
 			if err != nil {
-				panic(err)
+				runtimeError()
 			}
 			jiage = strings.Repeat("　", jiageCount)
 			i++
@@ -417,7 +423,7 @@ func formatText(book string) string {
 			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
 			jiageCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
 			if err != nil {
-				panic(err)
+				runtimeError()
 			}
 			singleJiage = strings.Repeat("　", jiageCount)
 		}
@@ -431,7 +437,7 @@ func formatText(book string) string {
 			var err error
 			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+zenkakuByte]))))
 			if err != nil {
-				panic(err)
+				runtimeError()
 			}
 			jiageCount *= zenkakuByte
 		}
