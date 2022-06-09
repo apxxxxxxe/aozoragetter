@@ -40,7 +40,7 @@ var (
 		"shatai":      regexp.MustCompile(`［＃「(.*?)」は斜体］`),
 		"shataiStart": regexp.MustCompile(`［＃(ここから)?斜体］`),
 		"shataiEnd":   regexp.MustCompile(`［＃(ここで)?斜体終わり］`),
-		"jisageStart": regexp.MustCompile(`［＃(ここから)?([０１２３４５６７８９]+)字下げ］`),
+		"jisageStart": regexp.MustCompile(`［＃(ここから)?([０１２３４５６７８９]+)字下げ(、折り返して([０１２３４５６７８９]+)字下げ)?］`),
 	}
 )
 
@@ -328,6 +328,8 @@ func formatText(book string) string {
 
 	result := ""
 	lines := strings.Split(book, "\n")
+	orikaeshi := ""
+	isOrikaeshi := false
 	jisage := ""
 	jiage := ""
 	align := ""
@@ -346,6 +348,10 @@ func formatText(book string) string {
 			i++
 		}
 
+		if strings.Contains(lines[i], "［＃本文終わり］") {
+			break
+		}
+
 		if strings.Contains(lines[i], "［＃改丁］") {
 			lines[i] = "\\x[noclear]\\c" + lines[i]
 		}
@@ -362,6 +368,13 @@ func formatText(book string) string {
 			if err != nil {
 				panic(err)
 			}
+			if subMatch[4] != "" {
+				orikaeshiCount, err := strconv.Atoi(string(norm.NFKC.Bytes([]byte(subMatch[4]))))
+				if err != nil {
+					runtimeError()
+				}
+				orikaeshi = strings.Repeat("　", orikaeshiCount)
+			}
 
 			if subMatch[1] == "ここから" {
 				// ［＃ここからn字下げ］の場合
@@ -374,6 +387,7 @@ func formatText(book string) string {
 
 		if strings.Contains(lines[i], "［＃ここで字下げ終わり］") {
 			jisage = ""
+			orikaeshi = ""
 		}
 
 		if strings.Contains(lines[i], "［＃ここから地付き］") {
@@ -415,7 +429,7 @@ func formatText(book string) string {
 		if strings.Contains(lines[i], "［＃地から") && strings.Contains(lines[i], "字上げ］") {
 			pos := strings.IndexAny(lines[i], "０１２３４５６７８９")
 			var err error
-			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+3]))))
+			jiageCount, err = strconv.Atoi(string(norm.NFKC.Bytes([]byte(lines[i][pos : pos+zenkakuByte]))))
 			if err != nil {
 				panic(err)
 			}
@@ -437,12 +451,10 @@ func formatText(book string) string {
 			lines[i] = rep.ReplaceAllString(lines[i], `⺀`)
 		}
 
-		/*
-			if strings.Contains(lines[i], "［") {
-				rep := regexp.MustCompile(`［[^］]*］`)
-				lines[i] = rep.ReplaceAllString(lines[i], "")
-			}
-		*/
+		if strings.Contains(lines[i], "［") {
+			rep := regexp.MustCompile(`［[^］]*］`)
+			lines[i] = rep.ReplaceAllString(lines[i], "")
+		}
 
 		for _, s := range rep["bousen"].FindAllStringSubmatch(lines[i], -1) {
 			lines[i] = strings.Replace(lines[i], s[1], "\\![underline,1]"+s[1]+"\\![underline,0]", 1)
@@ -469,6 +481,11 @@ func formatText(book string) string {
 		lines[i] = rep["shataiEnd"].ReplaceAllString(lines[i], "\\![italic,0]")
 
 		line := singleAlign + align + singleJisage + jisage + lines[i] + singleJiage + jiage + "\n"
+		if isOrikaeshi {
+			line = orikaeshi + line
+		} else if !isOrikaeshi && orikaeshi != "" {
+			isOrikaeshi = true
+		}
 		if len(singleJisage)+len(jisage) > jiageCount {
 			result += line[jiageCount:]
 		} else {
